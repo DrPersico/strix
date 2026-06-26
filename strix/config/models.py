@@ -60,26 +60,39 @@ DEFAULT_MODEL_RETRY = ModelRetrySettings(
 )
 
 RECOMMENDED_MODEL_NAMES = (
+    "openai/gpt-5.5",
+    "openai/gpt-5.5-pro",
     "openai/gpt-5.4",
+    "openai/gpt-5.4-pro",
+    "openai/gpt-5.3-codex",
+    "anthropic/claude-opus-4-8",
     "anthropic/claude-sonnet-4-6",
-    "vertex_ai/gemini-3-pro-preview",
+    "vertex_ai/gemini-3.1-pro-preview",
+    "gemini/gemini-3.1-pro-preview",
+    "xai/grok-4.3",
+    "deepseek/deepseek-v4-pro",
+    "deepseek/deepseek-reasoner",
+    "dashscope/qwen3-max-2026-01-23",
+    "moonshot/kimi-k2.7-code",
+    "moonshot/kimi-k2.6",
+    "mistral/mistral-medium-3-5",
+    "mistral/magistral-medium-latest",
 )
 
 _RECOMMENDED_MODEL_NAME_SET = frozenset(name.lower() for name in RECOMMENDED_MODEL_NAMES)
 
-FRONTIER_MODEL_PROVIDERS = (
-    "openai",
-    "anthropic",
-    "vertex_ai",
-    "gemini",
-    "google",
-)
-
-FRONTIER_MODEL_PREFIXES = (
-    "gpt-5",
-    "claude-opus-4",
-    "claude-sonnet-4",
-    "gemini-3",
+FRONTIER_MODEL_FAMILIES = (
+    (("azure", "azure_ai", "bedrock_mantle", "openai"), ("gpt-5",)),
+    (
+        ("anthropic", "azure_ai", "bedrock", "claude", "databricks", "snowflake", "vertex_ai"),
+        ("claude-opus-4", "claude-sonnet-4"),
+    ),
+    (("google", "gemini", "vertex_ai"), ("gemini-3",)),
+    (("xai", "x-ai"), ("grok-4",)),
+    (("deepseek",), ("deepseek-v4", "deepseek-r1", "deepseek-reasoner")),
+    (("alibaba", "dashscope", "qwen"), ("qwen3.7", "qwen3.5", "qwen3-max")),
+    (("moonshot", "moonshotai", "kimi"), ("kimi-k2.7", "kimi-k2.6", "kimi-k2.5")),
+    (("mistral", "mistralai"), ("mistral-medium-3-5", "magistral-medium")),
 )
 
 
@@ -185,9 +198,10 @@ def is_recommended_or_frontier_model(model_name: str) -> bool:
     if name in _RECOMMENDED_MODEL_NAME_SET:
         return True
     provider_name, bare_model_name = _split_model_provider(name)
-    if provider_name is None:
-        return _is_frontier_model_name(bare_model_name)
-    return provider_name in FRONTIER_MODEL_PROVIDERS and _is_frontier_model_name(bare_model_name)
+    return any(
+        _matches_frontier_family(provider_name, bare_model_name, provider_markers, prefixes)
+        for provider_markers, prefixes in FRONTIER_MODEL_FAMILIES
+    )
 
 
 def _normalized_model_name(model_name: str) -> str:
@@ -206,8 +220,46 @@ def _split_model_provider(model_name: str) -> tuple[str | None, str]:
     return provider_name, bare_model_name
 
 
-def _is_frontier_model_name(model_name: str) -> bool:
-    return any(model_name.startswith(prefix) for prefix in FRONTIER_MODEL_PREFIXES)
+def _matches_frontier_family(
+    provider_name: str | None,
+    model_name: str,
+    provider_markers: tuple[str, ...],
+    model_prefixes: tuple[str, ...],
+) -> bool:
+    if not _matches_model_prefix(model_name, model_prefixes):
+        return False
+    if provider_name is None:
+        return True
+    return _contains_provider_marker(
+        provider_name, provider_markers, split_compound_names=True
+    ) or _contains_provider_marker(model_name, provider_markers)
+
+
+def _matches_model_prefix(model_name: str, model_prefixes: tuple[str, ...]) -> bool:
+    return any(
+        candidate.startswith(prefix)
+        for candidate in _model_name_candidates(model_name)
+        for prefix in model_prefixes
+    )
+
+
+def _model_name_candidates(model_name: str) -> tuple[str, ...]:
+    if "." not in model_name:
+        return (model_name,)
+    suffixes = tuple(
+        model_name.split(".", index)[-1] for index in range(1, model_name.count(".") + 1)
+    )
+    return (model_name, *suffixes)
+
+
+def _contains_provider_marker(
+    value: str, provider_markers: tuple[str, ...], *, split_compound_names: bool = False
+) -> bool:
+    parts = set(value.replace(".", "/").split("/"))
+    if split_compound_names:
+        for separator in ("_", "-"):
+            parts.update(piece for part in tuple(parts) for piece in part.split(separator))
+    return any(marker in parts for marker in provider_markers)
 
 
 def is_known_openai_bare_model(model_name: str) -> bool:
