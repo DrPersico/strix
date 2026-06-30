@@ -275,3 +275,5 @@ Strix builds on the incredible work of open-source projects like [LiteLLM](https
 > Only test apps you own or have permission to test. You are responsible for using Strix ethically and legally.
 
 </div>
+
+![](https://static.scarf.sh/a.png?x-pxid=a0ba15dd-a205-4a54-95d6-7814e9ae6b61)
