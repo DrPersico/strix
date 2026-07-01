@@ -41,11 +41,11 @@ AWS misconfigurations frequently expose credentials, data, and lateral movement 
 
 **Unauthenticated Enumeration**
 ```
-# S3 bucket existence (403 vs 404 reveals existence)
-aws s3 ls s3://target-bucket --no-sign-request
+# S3 bucket existence (403 = exists but private, 404 = doesn't exist or different region)
+aws s3api head-bucket --bucket target-bucket --no-sign-request 2>&1
 curl -I https://target-bucket.s3.amazonaws.com/
 
-# Public listing
+# Public listing (confirms s3:ListBucket is granted to AllUsers)
 aws s3 ls s3://target-bucket --no-sign-request
 ```
 
