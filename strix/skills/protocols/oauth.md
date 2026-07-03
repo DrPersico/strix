@@ -166,6 +166,20 @@ com.app://callback  (mobile custom scheme)
 4. Check logout/revocation — tokens may remain valid after "logout"
 5. Chain with open redirect or XSS on the legitimate redirect_uri to exfiltrate codes
 
+## Tooling
+
+The sandbox ships **jwt_tool** (already cloned at `/home/pentester/tools/jwt_tool`) plus `curl` — enough for the token side of OAuth/OIDC.
+
+- **jwt_tool** (ticarpi) — inspect and tamper ID tokens / JWT access tokens: `alg:none`, `HS256`/`RS256` key confusion, `kid` injection, claim editing (`sub`, `aud`, `iss`, `exp`):
+  ```
+  python3 /home/pentester/tools/jwt_tool/jwt_tool.py <ID_TOKEN>                    # decode/inspect
+  python3 /home/pentester/tools/jwt_tool/jwt_tool.py <ID_TOKEN> -X a               # alg:none
+  python3 /home/pentester/tools/jwt_tool/jwt_tool.py <ID_TOKEN> -X k -pk pub.pem   # RS256->HS256 confusion
+  ```
+- **curl** — drive the authorize → callback → token chain by hand so you control every parameter (`redirect_uri`, `client_id`, `state`, PKCE `code_challenge`/`code_verifier`) and can test the binding/downgrade cases above.
+
+Humans often use Burp's **EsPReSSO** (RUB-NDS) SSO extension for flow visualization; it is GUI-only, so prefer manual `curl` + `jwt_tool` in-sandbox.
+
 ## Summary
 
 OAuth security hinges on strict redirect URI binding, unguessable state/nonce, PKCE for public clients, and consistent token audience validation. Any gap in the authorize-to-token chain is a potential account takeover.

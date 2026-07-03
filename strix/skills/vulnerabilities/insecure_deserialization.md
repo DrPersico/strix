@@ -1,5 +1,5 @@
 ---
-name: insecure_deserialization
+name: insecure-deserialization
 description: Insecure deserialization testing for Java, Python, PHP, .NET, Ruby, and Node.js covering gadget chains, type confusion, and safe validation
 ---
 
@@ -162,6 +162,26 @@ When `TypeNameHandling` != `None`.
 3. Check cookies named `JSESSIONID` alternatives, `.ASPXAUTH`, `laravel_session`, custom tokens
 4. In white-box, trace from `readObject`/`unserialize`/`pickle.loads` backward to source
 5. ViewState MAC off is still common on legacy ASP.NET — test early on `.aspx` apps
+
+## Tooling
+
+Payload generation is the practitioner's core tool here. The sandbox has `git`/`python`/`go` and **interactsh-client** (OAST); add a JRE or `php-cli` if you need the Java/PHP generators.
+
+| Tool | Language / format | Use |
+|------|-------------------|-----|
+| **ysoserial** (frohoff) | Java native | Gadget-chain payloads: `CommonsCollections1-7`, `Groovy1`, `Spring1/2`, and `URLDNS` for a safe no-exec DNS oracle. Needs a JRE. |
+| **phpggc** (ambionics) | PHP `unserialize` / Phar | Framework POP chains (Laravel, Symfony, WordPress, Drupal, Monolog). Needs `php-cli`. |
+| **ysoserial.net** | .NET `BinaryFormatter` / Json.NET | Windows/.NET gadget payloads. Needs .NET/mono — usually out of scope in a Linux sandbox. |
+
+```
+# Java: prove the sink with a no-exec DNS oracle BEFORE any RCE chain
+java -jar ysoserial.jar URLDNS "http://$(interactsh-client -json | jq -r .host)" | base64 -w0
+
+# PHP: generate a Laravel POP chain (base64), fast path via a framework gadget
+./phpggc -b Laravel/RCE9 system id
+```
+
+Confirm the sink with a callback (`URLDNS` / interactsh OAST) before firing a command-exec chain, and match the chain to the fingerprinted library version — the wrong chain just adds noise.
 
 ## Summary
 

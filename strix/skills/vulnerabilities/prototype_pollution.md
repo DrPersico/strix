@@ -1,5 +1,5 @@
 ---
-name: prototype_pollution
+name: prototype-pollution
 description: Client and server prototype pollution testing covering JavaScript object merge bugs, Node.js RCE chains, and filter bypasses
 ---
 
@@ -126,6 +126,16 @@ Gadget availability depends on package versions — enumerate `node_modules` in 
 3. Check both request parsing and response template config merges (second-order)
 4. Node gadget chains are version-specific — confirm package version before claiming RCE
 5. Combine with client-side template injection if polluted keys flow into rendering config
+
+## Tooling
+
+Detection is mostly about payload shapes (above) plus a couple of light helpers. The sandbox has `go` and `nuclei`; `ppfuzz` is a single static binary.
+
+- **ppfuzz** (dwisiswant0) — fast client-side prototype-pollution fuzzer (Rust, single binary); good for spraying the URL/param shapes across many endpoints: `ppfuzz -l urls.txt`
+- **nuclei** (preinstalled) — has prototype-pollution templates for quick triage: `nuclei -u https://target -tags prototype-pollution`
+- **BlackFan `client-side-prototype-pollution`** — not a tool but the canonical **gadget reference**: maps polluted keys to concrete DOM-XSS sinks per library (jQuery, Popper, Wistia, etc.). Use it to turn a confirmed pollution into real impact.
+
+For server-side gadget hunting there is no reliable one-click tool — enumerate `node_modules` in white-box scope and match polluted keys to sinks (`ejs`/`pug` `outputFunctionName`, `child_process` `shell`/`NODE_OPTIONS`) as covered above.
 
 ## Summary
 

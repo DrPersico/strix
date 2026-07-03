@@ -206,6 +206,26 @@ curl http://169.254.169.254/latest/user-data
 4. Review trust policies on roles, not just permission policies
 5. Combine with subdomain takeover — dangling S3 bucket names in DNS CNAMEs
 
+## Tooling
+
+Prefer credential-light, install-once CLIs. The sandbox has `awscli`/`python`/`pipx`/`go` and build-time egress.
+
+- **awscli** — the primary enumeration tool (used throughout this skill). Always start with `aws sts get-caller-identity`.
+- **enumerate-iam** (andresriancho) — tiny script that brute-forces which API calls a set of keys can make when you can't read your own policy:
+  ```
+  git clone https://github.com/andresriancho/enumerate-iam && cd enumerate-iam
+  pip install -r requirements.txt
+  python enumerate-iam.py --access-key AKIA... --secret-key ...
+  ```
+- **cloudsplaining** (Salesforce) — offline IAM policy risk analysis; finds privilege-escalation/resource-exposure in the auth-details JSON:
+  ```
+  pipx install cloudsplaining
+  aws iam get-account-authorization-details > auth.json
+  cloudsplaining scan --input-file auth.json
+  ```
+- **CloudFox** (BishopFox) — single Go binary for fast post-compromise inventory and "what can I do from here" surfacing: `cloudfox aws --profile <profile> all-checks`
+- **Pacu** (Rhino Security Labs) — the standard AWS exploitation framework; heavier, but its `iam__privesc_scan` module automates the escalation table above. Use for a full exploitation session (`run iam__enum_permissions`, then `run iam__privesc_scan`).
+
 ## Summary
 
 AWS security requires least-privilege IAM, blocked public data paths, IMDSv2 with hop limits, and tight resource policies. Enumerate from any credential found — even limited read access often reveals escalation chains.

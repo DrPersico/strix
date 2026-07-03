@@ -71,7 +71,7 @@ Map endpoints, authentication classes, and permission classes per route.
 - Weak or leaked `SECRET_KEY` → forge session cookies (`django.contrib.sessions.backends.signed_cookies`)
 
 **JWT (simplejwt)**
-- Accepting `HS256` with public key confusion if misconfigured
+- RS256→HS256 confusion if algorithm pinning is misconfigured
 - Missing `user_id`/`token` blacklist on logout
 - Refresh token rotation not enforced
 
@@ -197,6 +197,17 @@ Jinja2 backend without autoescape: `{{7*7}}`, RCE gadgets if sandbox misconfigur
 3. Test `?format=` and browsable API HTML responses for CSRF on session auth
 4. `django.contrib.admin` uses separate auth — don't assume API auth covers admin
 5. Compare ASGI WebSocket consumers against REST permissions for the same resource
+
+## Tooling
+
+Static analysis is the fastest way to reach the sinks above in white-box scope. The sandbox ships `python`/`pipx`, `semgrep`, `bandit`, `ast-grep`, and `ripgrep`.
+
+- **bandit** (preinstalled) — Python security linter; flags `mark_safe`, `extra()`, `RawSQL`, `subprocess`, weak crypto, hardcoded secrets: `bandit -r . -ll`
+- **semgrep** (preinstalled) with the Django ruleset — higher-signal than bandit for framework-specific bugs (`.extra()`, `RawSQL`, `|safe`, `csrf_exempt`, `ALLOWED_HOSTS=['*']`): `semgrep --config p/django .`
+- **pip-audit** (PyPA) — dependency CVE scanner for known-vuln Django/DRF/simplejwt versions: `pipx install pip-audit && pip-audit -r requirements.txt`
+- **ast-grep** (preinstalled) — quick structural grep for risky calls without a full SAST run: `ast-grep run -p 'mark_safe($X)' -l python`
+
+For the `SECRET_KEY` → signed-cookie/reset-token forgery path noted under Session Issues, Django's own `django.core.signing` is the "tool": with a leaked key you can mint valid `signing.dumps()` values (session cookies, password-reset tokens, and `PickleSerializer`-backed session RCE).
 
 ## Summary
 
